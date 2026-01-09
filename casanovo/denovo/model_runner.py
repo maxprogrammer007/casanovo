@@ -294,12 +294,14 @@ class ModelRunner:
 
         try:
             self.loaders.setup(stage="test", annotated=evaluate)
-        except (KeyError, OSError) as e:
+        except (KeyError, OSError, TypeError) as e:
             if evaluate:
                 error_message = (
                     "Error creating annotated spectrum dataloaders. This may "
                     "be the result of having an unannotated peak file present "
-                    "in the validation peak file path list."
+                    "in the validation peak file path list. Check that the input "
+                    "spectrum files are annotated, and if they are that the "
+                    "format is correct."
                 )
 
                 logger.error(error_message)
