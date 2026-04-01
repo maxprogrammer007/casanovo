@@ -5,6 +5,7 @@ import functools
 import hashlib
 import heapq
 import io
+import logging
 import os
 import pathlib
 import platform
