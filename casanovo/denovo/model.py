@@ -455,15 +455,9 @@ class Spec2Pep(pl.LightningModule):
                 # Only discard beams we have actually checked
                 discarded_beams[has_n_term] |= multiple_mods | internal_mods
 
-        # Calculate peptide lengths
+        # Calculate peptide lengths, and adjust for stop tokens
         peptide_lens = torch.full((batch_size,), step + 1, device=device)
-        # Adjust for stop tokens
-        if self.tokenizer.reverse:
-            has_stop_at_start = tokens[:, 0] == self.stop_token
-            peptide_lens[has_stop_at_start] -= 1
-        else:
-            has_stop_at_end = ends_stop_token
-            peptide_lens[has_stop_at_end] -= 1
+        peptide_lens[ends_stop_token] -= 1
 
         # Discard beams that don't meet minimum peptide length
         too_short = peptide_lens < self.min_peptide_len
@@ -502,7 +496,7 @@ class Spec2Pep(pl.LightningModule):
         ]
             Priority queue with finished beams for each spectrum,
             ordered by peptide score. For each finished beam, a tuple
-            with the (negated) peptide score, a random tie-breaking
+            with the peptide score, a random tie-breaking
             float, the amino acid-level scores, and the predicted tokens
             is stored.
         """
@@ -525,18 +519,6 @@ class Spec2Pep(pl.LightningModule):
             has_stop_token = pred_tokens[-1] == self.stop_token
             pred_peptide = pred_tokens[:-1] if has_stop_token else pred_tokens
 
-            # Don't cache this peptide if it was already predicted previously.
-            pred_peptide_cpu = pred_peptide.cpu()
-            duplicate = False
-            for pred_cached in pred_cache[spec_idx]:
-                # TODO: Add duplicate predictions with their highest score.
-                if torch.equal(pred_cached[-1], pred_peptide_cpu):
-                    duplicate = True
-                    break
-
-            if duplicate:
-                continue
-
             # Calculate softmax scores directly with proper indexing
             smx = self.softmax(scores[i : i + 1, : step + 1, :])
 
@@ -553,24 +535,30 @@ class Spec2Pep(pl.LightningModule):
 
             # Omit the stop token from the amino acid-level scores.
             aa_scores = aa_scores[:-1]
-            # Add the prediction to the cache (minimum priority queue,
-            # maximum the number of beams elements).
-            if len(pred_cache[spec_idx]) < self.n_beams:
-                heapadd = heapq.heappush
-            else:
-                heapadd = heapq.heappushpop
 
-            heapadd(
-                pred_cache[spec_idx],
-                (
-                    peptide_score,
-                    np.random.random_sample(),
-                    aa_scores,
-                    torch.clone(
-                        pred_peptide_cpu
-                    ),  # Ensure tensor is on CPU for storage
-                ),
+            pred_peptide_cpu = pred_peptide.cpu()
+            peptide_entry = (
+                peptide_score,
+                np.random.random_sample(),
+                aa_scores,
+                torch.clone(pred_peptide_cpu),
             )
+            # Check for duplicate predictions and update with highest score.
+            for j, pred_cached in enumerate(pred_cache[spec_idx]):
+                if torch.equal(pred_cached[-1], pred_peptide_cpu):
+                    if peptide_score > pred_cached[0]:
+                        pred_cache[spec_idx][j] = peptide_entry
+                        heapq.heapify(pred_cache[spec_idx])
+                    break
+            else:
+                # Add the prediction to the cache (minimum priority queue,
+                # maximum the number of beams elements).
+                if len(pred_cache[spec_idx]) < self.n_beams:
+                    heapadd = heapq.heappush
+                else:
+                    heapadd = heapq.heappushpop
+
+                heapadd(pred_cache[spec_idx], peptide_entry)
 
     def _get_topk_beams(
         self,

@@ -9,8 +9,9 @@ When you are ready to use Casanovo, you can input your MS/MS spectra in one of t
 - **[mzML](https://doi.org/10.1074/mcp.R110.000133)**: XML-based mass spectrometry community standard file format developed by the Proteomics Standards Initiative (PSI).
 - **[mzXML](https://doi.org/10.1038/nbt1031)**: XML-based predecessor of mzML. Although supported by Casanovo, mzML should typically be preferred instead.
 - **[MGF](https://www.matrixscience.com/help/data_file_help.html)**: A simple text-based peak file, though not as rich in detail as mzML.
+- **D**: A proprietary binary file format used by Bruker instruments.
 
-All three of the above file formats can be used as input to Casanovo for *de novo* peptide sequencing and database searching.
+All four of the above file formats can be used as input to Casanovo for *de novo* peptide sequencing and database searching.
 As the official PSI standard format containing the complete information from a mass spectrometry run, mzML should typically be preferred.
 
 ### FASTA (optional)
@@ -209,6 +210,13 @@ This column consists of two parts: the run index and the spectrum reference, sep
 Be mindful of the input peak file format when linking Casanovo PSMs to their input spectra.
 Even when the same raw file is converted to both mzML and MGF, scan numbers in the mzML file will generally not match spectrum indices in the MGF file, as the former contains both MS and MS/MS spectra while the latter only contains MS/MS spectra.
 ```
+When processing MGF files that contain instrument-assigned scan numbers in a `SCANS`, `SCAN`, or `SCAN ID` header field, Casanovo will additionally export an optional `opt_global_cv_MS:1003057_scan_number` column in the PSM section.
+This column preserves the native scan number from the instrument and takes the form `ms_run[FILE_INDEX]:scan=SCAN_NUMBER`, for example `ms_run[1]:scan=17`.
+This column is separate from the `spectra_ref` column and does not replace the index-based spectrum reference.
+The column is global to the entire mzTab file: it is added whenever at least one MGF input file contains scan number header fields.
+In mixed-input runs (e.g. both MGF and mzML files), the column is present for the whole file, but rows originating from mzML, mzXML, or MGF spectra without scan number headers will have a "null" value in this column.
+If no input file contains scan number headers the column is omitted entirely.
+Note that only purely numeric scan values are exported; MGF files that use composite or non-numeric scan identifiers in these fields will have a "null" value in this column.
 
 ```{note}
 The PSM identifier in the `PSM_ID` column is not necessarily identical to the spectrum index in the `spectra_ref` column, even for MGF files.
