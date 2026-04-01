@@ -1905,11 +1905,11 @@ def test_log_training_set_size(mgf_small, tmp_path, caplog):
         data_module.setup()
 
     assert any(
-        "Training dataset contains" in msg and "spectra" in msg
+        msg == "Training dataset contains 4 spectra."
         for msg in caplog.messages
     )
     assert any(
-        "Validation dataset contains" in msg and "spectra" in msg
+        msg == "Validation dataset contains 2 spectra."
         for msg in caplog.messages
     )
 
@@ -1929,11 +1929,11 @@ def test_log_training_set_size_shuffled(mgf_small, tmp_path, caplog):
         data_module.setup()
 
     assert any(
-        "Training dataset contains" in msg and "spectra" in msg
+        msg == "Training dataset contains 4 spectra."
         for msg in caplog.messages
     )
     assert any(
-        "Validation dataset contains" in msg and "spectra" in msg
+        msg == "Validation dataset contains 2 spectra."
         for msg in caplog.messages
     )
 
