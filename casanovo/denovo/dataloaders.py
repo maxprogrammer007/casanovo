@@ -161,6 +161,16 @@ class DeNovoDataModule(pl.LightningDataModule):
                     mode="valid",
                     shuffle=False,
                 )
+            if self.train_dataset is not None:
+                logger.info(
+                    "Training dataset contains %d spectra.",
+                    self._get_n_spectra(self.train_dataset),
+                )
+            if self.valid_dataset is not None:
+                logger.info(
+                    "Validation dataset contains %d spectra.",
+                    self._get_n_spectra(self.valid_dataset),
+                )
         if stage in (None, "test"):
             if self.test_paths is not None:
                 self.test_dataset = self._make_dataset(
@@ -169,6 +179,25 @@ class DeNovoDataModule(pl.LightningDataModule):
                     mode="test",
                     shuffle=False,
                 )
+
+    @staticmethod
+    def _get_n_spectra(dataset: torch.utils.data.Dataset) -> int:
+        """Get the number of spectra in a dataset.
+
+        Parameters
+        ----------
+        dataset : torch.utils.data.Dataset
+            The dataset from which to get the number of spectra. This
+            may be wrapped in a ShufflerIterDataPipe.
+
+        Returns
+        -------
+        int
+            The number of spectra in the dataset.
+        """
+        if isinstance(dataset, ShufflerIterDataPipe):
+            dataset = dataset.datapipe
+        return dataset.n_spectra
 
     def _make_dataset(
         self, paths, annotated, mode, shuffle
