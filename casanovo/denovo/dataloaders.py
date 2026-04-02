@@ -1,6 +1,7 @@
 """Data loaders for the de novo sequencing task."""
 
 import functools
+import math
 import logging
 import os
 import pathlib
@@ -67,7 +68,8 @@ class DeNovoDataModule(pl.LightningDataModule):
         Shuffle the training dataset or not. Default is True.
     shuffle_buffer_size: Optional[int]
         Number of samples to buffer for randomly shuffling the training
-        data.
+        data. This is converted to a batch count internally because the
+        underlying dataset yields pre-batched items.
     n_workers : int, optional
         The number of workers to use for data loading. By default, the
         number of available CPU cores on the current machine is used.
@@ -265,10 +267,18 @@ class DeNovoDataModule(pl.LightningDataModule):
 
         if shuffle:
             dataset = ShufflerIterDataPipe(
-                dataset, buffer_size=self.shuffle_buffer_size
+                dataset,
+                buffer_size=self._shuffle_buffer_batches(),
             )
 
         return dataset
+
+    def _shuffle_buffer_batches(self) -> int:
+        """Convert the sample-based shuffle buffer to batches."""
+        return max(
+            1,
+            math.ceil(self.shuffle_buffer_size / self.train_batch_size),
+        )
 
     def _make_loader(
         self, dataset: torch.utils.data.Dataset, shuffle: bool = False

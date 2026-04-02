@@ -1961,6 +1961,36 @@ def test_log_training_set_size_shuffled(mgf_small, tmp_path, caplog):
     )
 
 
+def test_shuffle_buffer_size_is_converted_to_batches(
+    mgf_small, tmp_path, monkeypatch
+):
+    """Test that shuffle_buffer_size is passed to the shuffler in batches."""
+    captured = {}
+
+    class FakeShufflerIterDataPipe:
+        def __init__(self, datapipe, buffer_size):
+            captured["buffer_size"] = buffer_size
+            self.datapipe = datapipe
+
+    monkeypatch.setattr(
+        "casanovo.denovo.dataloaders.ShufflerIterDataPipe",
+        FakeShufflerIterDataPipe,
+    )
+
+    data_module = DeNovoDataModule(
+        lance_dir=str(tmp_path),
+        train_paths=[mgf_small],
+        min_peaks=0,
+        train_batch_size=128,
+        shuffle_buffer_size=1000,
+        shuffle=True,
+    )
+
+    data_module.setup("fit")
+
+    assert captured["buffer_size"] == 8
+
+
 def test_spectrum_id_mzml(mzml_small, tmp_path):
     """Test that spectra from mzML files are specified by their scan id."""
     mzml_small2 = tmp_path / "mzml_small2.mzml"
