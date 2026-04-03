@@ -145,6 +145,8 @@ max_epochs: 30
 # Shuffle dataset during training.
 shuffle: true
 # Number of samples to buffer while randomly shuffling the training data.
+# This is converted to a batch count internally because the training
+# dataset yields pre-batched items.
 shuffle_buffer_size: 10_000
 # Number of validation steps to run before training begins.
 num_sanity_val_steps: 0
